@@ -6,6 +6,7 @@ export const navLinks = [
   { label: 'Methodology', path: '/methodology' },
   { label: 'Portfolio', path: '/portfolio' },
   { label: 'Testimonials', path: '/testimonials' },
+  { label: 'Contact', path: '/contact' },
 ];
 
 export const heroData = {

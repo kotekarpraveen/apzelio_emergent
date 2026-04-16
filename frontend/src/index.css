@@ -11,6 +11,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #0b1326;
   color: #dae2fd;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Light Mode Overrides */
+[data-theme="light"] body {
+  background-color: #f7f9fb;
+  color: #191c1e;
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(0, 99, 152, 0.2);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f7f9fb;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #d8dadc;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #bec8d2;
 }
 
 h1, h2, h3, h4, h5, h6, .font-headline {
