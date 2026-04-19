@@ -12,8 +12,17 @@ const Footer = () => {
     }`}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
         <div>
-          <Link to="/" className={`text-xl font-bold font-headline mb-4 block ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            {footerData.brand}
+          <Link to="/" className="mb-4 block transition-transform hover:scale-105 origin-left w-fit">
+            <img 
+              src="/logo.png" 
+              alt={footerData.brand} 
+              className="h-14 w-auto object-contain transition-all duration-300 drop-shadow-sm"
+              style={{
+                filter: isDark 
+                  ? 'drop-shadow(0 0 6px rgba(71,214,255,0.3))' 
+                  : 'invert(1) hue-rotate(180deg) brightness(0.7) contrast(1.5)'
+              }}
+            />
           </Link>
           <p className={`font-body leading-relaxed max-w-xs ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
             {footerData.tagline}
