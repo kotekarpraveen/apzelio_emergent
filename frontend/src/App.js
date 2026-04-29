@@ -12,6 +12,12 @@ import Methodology from "./pages/Methodology";
 import Portfolio from "./pages/Portfolio";
 import Testimonials from "./pages/Testimonials";
 import Contact from "./pages/Contact";
+import Blog from "./pages/Blog";
+import BlogDetail from "./pages/BlogDetail";
+import Admin from "./pages/Admin";
+import axios from "axios";
+
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -36,6 +42,9 @@ function App() {
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/testimonials" element={<Testimonials />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogDetail />} />
+            <Route path="/admin/blogs" element={<Admin />} />
           </Routes>
           <Footer />
           <ChatBot />

@@ -6,7 +6,9 @@ export const navLinks = [
   { label: 'Methodology', path: '/methodology' },
   { label: 'Portfolio', path: '/portfolio' },
   { label: 'Testimonials', path: '/testimonials' },
+  { label: 'Blog', path: '/blog' },
   { label: 'Contact', path: '/contact' },
+  { label: 'Admin', path: '/admin/blogs' },
 ];
 
 export const heroData = {
@@ -338,7 +340,7 @@ export const testimonialsData = {
 export const footerData = {
   brand: 'ApZelio',
   tagline: 'Engineering digital excellence through AI and high-performance architecture.',
-  quickLinks: ['Privacy Policy', 'Terms of Service'],
+  quickLinks: ['Blog', 'Privacy Policy', 'Terms of Service'],
   social: ['LinkedIn', 'Github'],
   copyright: '© 2024 ApZelio. US-Based Digital Excellence.',
 };
