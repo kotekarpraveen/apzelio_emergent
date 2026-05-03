@@ -10,6 +10,8 @@ from typing import List, Optional
 import uuid
 from datetime import datetime
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+import json
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -95,6 +97,32 @@ class ContactForm(BaseModel):
     status: str = "new"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+class BlogCreate(BaseModel):
+    title: str
+    content: str
+    summary: str
+    category: str = "Development"
+    author: str = "ApZelio Admin"
+    status: str = "published"
+
+class Blog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    slug: str
+    content: str
+    summary: str
+    category: str
+    author: str
+    status: str
+    is_ai_generated: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class BlogGenerationRequest(BaseModel):
+    topic: str
+    category: Optional[str] = "Development"
+    tone: Optional[str] = "Professional and Technical"
+
 
 # Routes
 @api_router.get("/")
@@ -179,6 +207,77 @@ async def create_contact(input: ContactFormCreate):
 async def get_contacts():
     contacts = await db.contacts.find().sort("created_at", -1).to_list(100)
     return [ContactForm(**c) for c in contacts]
+
+# Blog Endpoints
+@api_router.post("/blogs/generate")
+async def generate_blog(request: BlogGenerationRequest):
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            system_message="You are a professional technical writer for ApZelio."
+        )
+        chat.with_model("openai", "gpt-4o-mini")
+        
+        prompt = f"""Generate a high-quality technical blog post about: {request.topic}
+        Category: {request.category}
+        Tone: {request.tone}
+        
+        The output must be in JSON format with the following keys:
+        - title: A catchy, professional title
+        - summary: A brief 2-sentence meta description/summary
+        - content: The full blog post content in high-quality Markdown. Include sections, bold text, and lists where appropriate.
+        
+        Ensure the content aligns with ApZelio's expertise in AI, Cloud, and Enterprise software."""
+        
+        response_text = await chat.send_message(UserMessage(text=prompt))
+        
+        # Clean response text if it contains markdown code blocks
+        clean_json = re.sub(r'```json\n|\n```', '', response_text).strip()
+        blog_data = json.loads(clean_json)
+        
+        return blog_data
+    except Exception as e:
+        logger.error(f"Blog generation error: {str(e)}")
+        return {"error": str(e)}
+
+@api_router.post("/blogs", response_model=Blog)
+async def create_blog(input: BlogCreate):
+    blog_dict = input.dict()
+    slug = re.sub(r'[^a-z0-9]+', '-', blog_dict['title'].lower()).strip('-')
+    
+    # Ensure slug is unique
+    existing = await db.blogs.find_one({"slug": slug})
+    if existing:
+        slug = f"{slug}-{str(uuid.uuid4())[:8]}"
+        
+    blog_obj = Blog(
+        **blog_dict,
+        slug=slug,
+        is_ai_generated=True # Assuming this for now since it's the requested flow
+    )
+    await db.blogs.insert_one(blog_obj.dict())
+    return blog_obj
+
+@api_router.get("/blogs", response_model=List[Blog])
+async def get_blogs(category: Optional[str] = None):
+    query = {"status": "published"}
+    if category:
+        query["category"] = category
+        
+    blogs = await db.blogs.find(query).sort("created_at", -1).to_list(100)
+    return [Blog(**b) for b in blogs]
+
+@api_router.get("/blogs/{slug}", response_model=Blog)
+async def get_blog(slug: str):
+    blog = await db.blogs.find_one({"slug": slug})
+    if blog:
+        return Blog(**blog)
+    return {"error": "Blog not found"}
+
+@api_router.delete("/blogs/{blog_id}")
+async def delete_blog(blog_id: str):
+    await db.blogs.delete_one({"id": blog_id})
+    return {"message": "Blog deleted"}
 
 # Include the router
 app.include_router(api_router)

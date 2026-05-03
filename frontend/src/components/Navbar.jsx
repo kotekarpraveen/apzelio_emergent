@@ -21,10 +21,17 @@ const Navbar = () => {
           : 'bg-white/70 shadow-[0px_12px_32px_rgba(25,28,30,0.06)]'
       }`} style={isDark ? { boxShadow: '0 20px 40px rgba(6, 14, 32, 0.4)' } : {}}>
         <div className="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
-          <Link to="/" className={`text-2xl font-bold tracking-tighter font-headline transition-colors ${
-            isDark ? 'text-slate-50 hover:text-[#47d6ff]' : 'text-slate-900 hover:text-[#006398]'
-          }`}>
-            ApZelio
+          <Link to="/" className="flex items-center transition-transform hover:scale-105">
+            <img 
+              src="/logo.png" 
+              alt="ApZelio Logo" 
+              className="h-16 md:h-20 w-auto object-contain transition-all duration-300 drop-shadow-md"
+              style={{
+                filter: isDark 
+                  ? 'drop-shadow(0 0 8px rgba(71,214,255,0.4))' 
+                  : 'invert(1) hue-rotate(180deg) brightness(0.7) contrast(1.5) drop-shadow(0 0 2px rgba(0,0,0,0.2))'
+              }}
+            />
           </Link>
 
           <div className="hidden md:flex gap-8 items-center">
