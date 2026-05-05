@@ -17,7 +17,7 @@ const Methodology = () => {
   const [contactOpen, setContactOpen] = useState(false);
 
   return (
-    <main className={`pt-24 ${t.bgSurface}`}>
+    <main className={`pt-32 ${t.bgSurface}`}>
       <section className="relative px-8 py-24 overflow-hidden">
         <div className={`absolute top-0 right-0 w-1/2 h-full -z-10 opacity-50 ${t.isDark ? 'ethereal-glow' : ''}`} />
         <div className="max-w-7xl mx-auto">

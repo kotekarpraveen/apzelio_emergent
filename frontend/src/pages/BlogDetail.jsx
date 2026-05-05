@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm';
 const BlogHero = ({ blog, onBack }) => (
   <div className="relative h-[60vh] min-h-[400px] w-full overflow-hidden">
     <img
-      src="https://images.unsplash.com/photo-1620712943543-bcc46386c6dd?auto=format&fit=crop&q=80&w=1600"
+      src={blog.image_url || "https://images.unsplash.com/photo-1620712943543-bcc46386c6dd?auto=format&fit=crop&q=80&w=1600"}
       alt={blog.title}
       className="w-full h-full object-cover"
     />
@@ -40,16 +40,16 @@ const BlogHero = ({ blog, onBack }) => (
           <div className="flex flex-wrap items-center gap-8 text-white/70">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-white border border-white/20">
-                {blog.author.charAt(0)}
+                {(blog.author_name || blog.author || 'A').charAt(0)}
               </div>
               <div>
-                <div className="text-white font-bold">{blog.author}</div>
+                <div className="text-white font-bold">{blog.author_name || blog.author || 'ApZelio Team'}</div>
                 <div className="text-xs">Technical Architect</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-[#47d6ff]" />
-              <span>{new Date(blog.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              <span>{blog.created_at ? new Date(blog.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recent'}</span>
             </div>
           </div>
         </motion.div>
@@ -71,16 +71,16 @@ const BlogSidebar = ({ isDark }) => (
   </div>
 );
 
-const AuthorBox = ({ author, isDark, secondaryContainer, textOnSurface, textOnSurfaceVariant }) => (
+const AuthorBox = ({ author_name, author, isDark, secondaryContainer, textOnSurface, textOnSurfaceVariant }) => (
   <div className={`mt-20 p-10 rounded-3xl border ${isDark ? 'bg-[#131b2e] border-[#45464d]/20' : 'bg-[#f2f4f6] border-gray-200'}`}>
     <div className="flex flex-col md:flex-row items-center gap-8">
       <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#47d6ff] to-[#d2bbff] p-1 shadow-xl">
         <div className={`w-full h-full rounded-[0.9rem] flex items-center justify-center text-3xl font-bold ${isDark ? 'bg-[#0b1326] text-white' : 'bg-white text-[#0b1326]'}`}>
-          {author.charAt(0)}
+          {(author_name || author || 'A').charAt(0)}
         </div>
       </div>
       <div className="flex-1 text-center md:text-left">
-        <h4 className={`text-2xl font-bold font-headline mb-2 ${textOnSurface}`}>{author}</h4>
+        <h4 className={`text-2xl font-bold font-headline mb-2 ${textOnSurface}`}>{author_name || author || 'ApZelio Team'}</h4>
         <p className={`mb-4 ${textOnSurfaceVariant}`}>
           Specializing in AI-driven software architecture and enterprise-grade solutions. Leading the charge in US-based engineering squads at ApZelio.
         </p>
@@ -138,7 +138,7 @@ const BlogDetail = () => {
   }
 
   return (
-    <main className={`min-h-screen pb-24 ${t.bgSurface}`}>
+    <main className={`min-h-screen pt-32 pb-24 ${t.bgSurface}`}>
       <BlogHero blog={blog} onBack={() => navigate('/blog')} />
 
       <div className="max-w-4xl mx-auto px-8 mt-16">
@@ -146,18 +146,22 @@ const BlogDetail = () => {
           <BlogSidebar isDark={t.isDark} />
 
           <div className="lg:col-span-11">
-            <div className={`prose prose-lg max-w-none ${t.isDark ? 'prose-invert' : ''}
-                prose-headings:font-headline prose-headings:font-bold
-                prose-p:leading-relaxed prose-p:text-lg
-                prose-a:text-[#47d6ff] hover:prose-a:text-[#008cab]
-                prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
-                prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700
+            <div className={`prose prose-lg md:prose-xl max-w-none ${t.isDark ? 'prose-invert' : ''}
+                prose-headings:font-headline prose-headings:font-bold prose-headings:tracking-tight
+                prose-h2:text-3xl md:prose-h2:text-4xl prose-h2:mt-12 prose-h2:mb-6
+                prose-p:leading-relaxed prose-p:text-slate-400 prose-p:mb-8
+                prose-li:text-slate-400 prose-li:my-2
+                prose-strong:text-white prose-strong:font-bold
+                prose-a:text-[#47d6ff] prose-a:no-underline hover:prose-a:text-[#008cab] prose-a:transition-colors
+                prose-code:bg-[#1e293b] prose-code:text-[#47d6ff] prose-code:px-2 prose-code:py-0.5 prose-code:rounded-lg prose-code:before:content-none prose-code:after:content-none
+                prose-pre:bg-[#0f172a] prose-pre:border prose-pre:border-white/5 prose-pre:rounded-2xl prose-pre:shadow-2xl
                 ${t.textOnSurfaceVariant}`}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{blog.content}</ReactMarkdown>
             </div>
 
             <AuthorBox
+              author_name={blog.author_name}
               author={blog.author}
               isDark={t.isDark}
               secondaryContainer={t.secondaryContainer}

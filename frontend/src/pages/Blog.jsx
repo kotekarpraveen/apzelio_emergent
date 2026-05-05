@@ -120,13 +120,13 @@ const FeaturedBlog = ({ blog, t, onClick }) => (
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center font-bold text-white text-sm border border-white/20">
-              {blog.author.charAt(0)}
+              {(blog.author_name || blog.author || 'A').charAt(0)}
             </div>
-            <span className="text-white/80 font-medium">{blog.author}</span>
+            <span className="text-white/80 font-medium">{blog.author_name || blog.author || 'ApZelio Team'}</span>
           </div>
           <div className="flex items-center gap-2 text-white/60 text-sm">
             <Calendar className="w-4 h-4" />
-            {new Date(blog.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            {blog.created_at ? new Date(blog.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
           </div>
           <div className={`ml-auto flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold backdrop-blur-md border transition-all group-hover:scale-105 ${t.isDark ? 'bg-[#47d6ff]/20 text-[#47d6ff] border-[#47d6ff]/30' : 'bg-white/20 text-white border-white/30'}`}>
             Read Article <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -165,7 +165,7 @@ const BlogCard = ({ blog, index, t, onClick }) => (
     </div>
     <div className="p-7 flex flex-col flex-1">
       <div className={`flex items-center gap-4 mb-4 text-[11px] font-bold uppercase tracking-widest ${t.textSecondary}`}>
-        <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {new Date(blog.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+        <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {blog.created_at ? new Date(blog.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent'}</div>
         <span className="w-1 h-1 rounded-full bg-current opacity-30" />
         <span>5 min read</span>
       </div>
@@ -176,9 +176,9 @@ const BlogCard = ({ blog, index, t, onClick }) => (
       <div className="mt-auto flex items-center justify-between">
         <div className={`flex items-center gap-2.5 text-xs font-bold ${t.textOnSurface}`}>
           <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${t.isDark ? 'bg-gradient-to-br from-[#47d6ff]/20 to-[#d2bbff]/20 text-white' : 'bg-gradient-to-br from-[#006398]/10 to-[#40a2e7]/10 text-[#006398]'}`}>
-            {blog.author.charAt(0)}
+            {(blog.author_name || blog.author || 'A').charAt(0)}
           </div>
-          {blog.author}
+          {blog.author_name || blog.author || 'ApZelio Team'}
         </div>
         <div className={`flex items-center gap-1.5 text-sm font-bold ${t.textPrimary} opacity-0 group-hover:opacity-100 transition-opacity`}>
           Read <ArrowRight className="w-3.5 h-3.5" />
