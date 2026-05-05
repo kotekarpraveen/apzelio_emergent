@@ -93,23 +93,22 @@ class BlogUpdateStatus(BaseModel):
 # --- AUTH ROUTES ---
 @api_router.post("/auth/register")
 async def register(user: UserRegister):
-    hashed_pwd = pwd_context.hash(user.password)
-    user_id = str(uuid.uuid4())
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        hashed_pwd = pwd_context.hash(user.password)
+        user_id = str(uuid.uuid4())
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute(
             "INSERT INTO users (id, username, email, password_hash, role) VALUES (%s, %s, %s, %s, %s)",
             (user_id, user.username, user.email, hashed_pwd, user.role)
         )
         conn.commit()
-        return {"message": "User created successfully"}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail="Username or Email already exists")
-    finally:
         cur.close()
         conn.close()
+        return {"message": "User created successfully"}
+    except Exception as e:
+        logger.error(f"REGISTER ERROR: {e}")
+        raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 @api_router.get("/init-db")
 async def init_db():
