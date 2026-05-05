@@ -18,7 +18,7 @@ const Services = () => {
   const [contactOpen, setContactOpen] = useState(false);
 
   return (
-    <main className="pt-24">
+    <main className="pt-32">
       <section className={`relative px-8 py-24 overflow-hidden ${t.bgSurface}`}>
         <div className={`absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[120px] -z-10 ${t.isDark ? 'bg-[#d2bbff]/10' : 'bg-[#40a2e7]/10'}`} />
         <motion.div initial="hidden" animate="visible" variants={fadeUp} className="max-w-7xl mx-auto">

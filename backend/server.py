@@ -1,26 +1,42 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime
-
-from emergentintegrations.llm.chat import LlmChat, UserMessage, SystemMessage
+from datetime import datetime, timedelta
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import re
+import jwt
+from passlib.context import CryptContext
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Security Configuration
+SECRET_KEY = os.environ.get('SECRET_KEY', 'apzelio-super-secret-key-2024')
+ALGORITHM = "HS256"
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use auto_error=False to allow optional authentication
+security = HTTPBearer(auto_error=False)
+
+# Database connection
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn
+    except Exception as e:
+        logger.error(f"❌ DATABASE CONNECTION ERROR: {e}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
 
 # LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
@@ -34,263 +50,239 @@ logger = logging.getLogger(__name__)
 
 # Create the main app
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# System message for the AI chatbot
-SYSTEM_MESSAGE = """You are ApZelio's AI assistant — a knowledgeable, professional, and friendly representative of ApZelio, a US-based digital consulting firm specializing in AI-driven software development, cloud-native architecture, and enterprise-grade solutions.
+# --- AUTH UTILS ---
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=7)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-About ApZelio:
-- US-Based Digital Excellence — 100% US-based engineering squads
-- Core Services: AI Integration & LLM Ops, Cloud Native Architecture, Custom SaaS Development, Security Audits
-- Tech Stack: Go (Golang), Python/AI (PyTorch, LangChain), Node.js & React, AWS, Redis, TypeScript, Rust
-- Service Tiers: Rapid MVP & Growth (6-week launch), Scale-Up Infrastructure (most popular), Enterprise Digital Excellence
-- Support: Maintenance Retainer, Innovation Partnership, Self-Managed Handoff
-- Methodology: Discovery & Audit → Iterative Sprints → Hardened QA → Launch & Support
-- Key Metrics: 98.5% Client Satisfaction, 99.8% On-Time Deployment, <14ms avg latency, 1,402+ active nodes
-- Notable Projects: Project AetherMind (AI platform), Titan Ledger (fintech), Omni-Edge CDN, Neural Infrastructure Layer
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-Your role:
-1. Answer questions about ApZelio's services, technology, methodology, and capabilities
-2. Help potential clients understand which service tier fits their needs
-3. Collect enquiry information (name, email, project details) when someone expresses interest
-4. Be concise, technical when needed, and always professional
-5. If asked about pricing, explain that ApZelio offers custom quotes based on project scope and suggest scheduling a consultation
-6. Always encourage users to fill out the contact form or schedule a consultation for detailed discussions
-
-Keep responses concise (2-4 sentences for simple queries, more for complex ones). Use a confident, knowledgeable tone."""
-
-
-# Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-class ChatRequest(BaseModel):
-    message: str
-    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-
-class ChatResponse(BaseModel):
-    response: str
-    session_id: str
-
-class ContactFormCreate(BaseModel):
-    name: str
+# --- MODELS ---
+class UserRegister(BaseModel):
+    username: str
     email: str
-    company: Optional[str] = ""
-    phone: Optional[str] = ""
-    service_interest: Optional[str] = ""
-    message: str
+    password: str
+    role: Optional[str] = 'author'
 
-class ContactForm(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    email: str
-    company: str = ""
-    phone: str = ""
-    service_interest: str = ""
-    message: str
-    status: str = "new"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 class BlogCreate(BaseModel):
     title: str
     content: str
     summary: str
     category: str = "Development"
-    author: str = "ApZelio Admin"
-    status: str = "published"
+    status: str = "draft"
+    image_url: Optional[str] = None
 
-class Blog(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    title: str
-    slug: str
-    content: str
-    summary: str
-    category: str
-    author: str
+class BlogUpdateStatus(BaseModel):
     status: str
-    is_ai_generated: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-class BlogGenerationRequest(BaseModel):
-    topic: str
-    category: Optional[str] = "Development"
-    tone: Optional[str] = "Professional and Technical"
-
-
-# Routes
-@api_router.get("/")
-async def root():
-    return {"message": "ApZelio API is running"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**sc) for sc in status_checks]
-
-# Chat endpoint
-@api_router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+# --- AUTH ROUTES ---
+@api_router.post("/auth/register")
+async def register(user: UserRegister):
+    hashed_pwd = pwd_context.hash(user.password)
+    user_id = str(uuid.uuid4())
+    conn = get_db_connection()
+    cur = conn.cursor()
     try:
-        # Load chat history from DB for this session
-        history = await db.chat_history.find(
-            {"session_id": request.session_id}
-        ).sort("timestamp", 1).to_list(50)
-
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=request.session_id,
-            system_message=SYSTEM_MESSAGE
+        cur.execute(
+            "INSERT INTO users (id, username, email, password_hash, role) VALUES (%s, %s, %s, %s, %s)",
+            (user_id, user.username, user.email, hashed_pwd, user.role)
         )
-        chat.with_model("openai", "gpt-4o-mini")
-
-        # Replay history into the chat
-        for msg in history:
-            if msg["role"] == "user":
-                user_msg = UserMessage(text=msg["content"])
-                # We add to chat's internal history without sending
-                chat.messages.append({"role": "user", "content": msg["content"]})
-            elif msg["role"] == "assistant":
-                chat.messages.append({"role": "assistant", "content": msg["content"]})
-
-        # Send user message
-        user_message = UserMessage(text=request.message)
-        response = await chat.send_message(user_message)
-
-        # Store user message in DB
-        await db.chat_history.insert_one({
-            "session_id": request.session_id,
-            "role": "user",
-            "content": request.message,
-            "timestamp": datetime.utcnow()
-        })
-
-        # Store assistant response in DB
-        await db.chat_history.insert_one({
-            "session_id": request.session_id,
-            "role": "assistant",
-            "content": response,
-            "timestamp": datetime.utcnow()
-        })
-
-        return ChatResponse(response=response, session_id=request.session_id)
-
+        conn.commit()
+        return {"message": "User created successfully"}
     except Exception as e:
-        logger.error(f"Chat error: {str(e)}")
-        return ChatResponse(
-            response="I'm having trouble connecting right now. Please try again in a moment, or feel free to use our contact form to reach our team directly.",
-            session_id=request.session_id
-        )
+        conn.rollback()
+        raise HTTPException(status_code=400, detail="Username or Email already exists")
+    finally:
+        cur.close()
+        conn.close()
 
-# Contact form endpoints
-@api_router.post("/contact", response_model=ContactForm)
-async def create_contact(input: ContactFormCreate):
-    contact_dict = input.dict()
-    contact_obj = ContactForm(**contact_dict)
-    await db.contacts.insert_one(contact_obj.dict())
-    return contact_obj
+@api_router.post("/auth/login")
+async def login(user: UserLogin):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
+    db_user = cur.fetchone()
+    cur.close()
+    conn.close()
 
-@api_router.get("/contacts", response_model=List[ContactForm])
-async def get_contacts():
-    contacts = await db.contacts.find().sort("created_at", -1).to_list(100)
-    return [ContactForm(**c) for c in contacts]
+    if not db_user or not pwd_context.verify(user.password, db_user['password_hash']):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-# Blog Endpoints
+    token = create_access_token({"id": db_user['id'], "username": db_user['username'], "role": db_user['role']})
+    return {"token": token, "username": db_user['username'], "role": db_user['role']}
+
+# --- USER MANAGEMENT ---
+@api_router.get("/users")
+async def list_users(current_user: dict = Depends(get_current_user)):
+    if current_user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+    return users
+
+# --- BLOG ROUTES ---
 @api_router.post("/blogs/generate")
-async def generate_blog(request: BlogGenerationRequest):
+async def generate_blog(request: dict):
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            system_message="You are a professional technical writer for ApZelio."
-        )
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, system_message="You are a professional technical writer and architect at ApZelio. Your writing is authoritative, clear, and uses modern Markdown formatting.")
         chat.with_model("openai", "gpt-4o-mini")
         
-        prompt = f"""Generate a high-quality technical blog post about: {request.topic}
-        Category: {request.category}
-        Tone: {request.tone}
+        prompt = f"""Generate a high-quality, long-form technical blog post about: {request.get('topic')}
         
-        The output must be in JSON format with the following keys:
-        - title: A catchy, professional title
-        - summary: A brief 2-sentence meta description/summary
-        - content: The full blog post content in high-quality Markdown. Include sections, bold text, and lists where appropriate.
-        
-        Ensure the content aligns with ApZelio's expertise in AI, Cloud, and Enterprise software."""
+        The article should include:
+        1. An engaging title.
+        2. A concise 2-sentence summary.
+        3. Comprehensive content with:
+           - Multiple H2 and H3 headings.
+           - Bulleted or numbered lists for key takeaways.
+           - At least one technical code block if applicable.
+           - Professional, clean Markdown structure.
+        4. A relevant keyword for Unsplash imagery.
+
+        IMPORTANT: Return ONLY a raw JSON object with keys: title, summary, content, image_keyword.
+        """
         
         response_text = await chat.send_message(UserMessage(text=prompt))
-        
-        # Clean response text if it contains markdown code blocks
         clean_json = re.sub(r'```json\n|\n```', '', response_text).strip()
         blog_data = json.loads(clean_json)
         
+        kw = blog_data.get('image_keyword', 'technology')
+        blog_data['image_url'] = f"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200&keywords={kw}"
+        
         return blog_data
     except Exception as e:
-        logger.error(f"Blog generation error: {str(e)}")
-        return {"error": str(e)}
+        logger.error(f"Blog generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.post("/blogs", response_model=Blog)
-async def create_blog(input: BlogCreate):
-    blog_dict = input.dict()
-    slug = re.sub(r'[^a-z0-9]+', '-', blog_dict['title'].lower()).strip('-')
+@api_router.get("/blogs")
+async def get_blogs(status: str = "published", credentials: Optional[HTTPAuthorizationCredentials] = Security(security)):
+    current_user = None
+    if credentials:
+        try:
+            payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+            current_user = payload
+        except: pass
+
+    conn = get_db_connection()
+    cur = conn.cursor()
     
-    # Ensure slug is unique
-    existing = await db.blogs.find_one({"slug": slug})
-    if existing:
-        slug = f"{slug}-{str(uuid.uuid4())[:8]}"
+    if status == "draft":
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required for drafts")
         
-    blog_obj = Blog(
-        **blog_dict,
-        slug=slug,
-        is_ai_generated=True # Assuming this for now since it's the requested flow
-    )
-    await db.blogs.insert_one(blog_obj.dict())
-    return blog_obj
+        if current_user.get('role') == 'admin':
+            cur.execute("SELECT * FROM blogs WHERE status = 'draft' ORDER BY created_at DESC")
+        else:
+            cur.execute("SELECT * FROM blogs WHERE status = 'draft' AND author_id = %s ORDER BY created_at DESC", (current_user['id'],))
+    else:
+        # Published is always public
+        cur.execute("SELECT * FROM blogs WHERE status = 'published' ORDER BY created_at DESC")
+    
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+    return results
 
-@api_router.get("/blogs", response_model=List[Blog])
-async def get_blogs(category: Optional[str] = None):
-    query = {"status": "published"}
-    if category:
-        query["category"] = category
+@api_router.post("/blogs")
+async def create_blog(input: BlogCreate, user: dict = Depends(get_current_user)):
+    base_slug = re.sub(r'[^a-z0-9]+', '-', input.title.lower()).strip('-')
+    slug = base_slug
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Unique slug check
+    cur.execute("SELECT id FROM blogs WHERE slug = %s", (slug,))
+    if cur.fetchone():
+        slug = f"{base_slug}-{str(uuid.uuid4())[:8]}"
         
-    blogs = await db.blogs.find(query).sort("created_at", -1).to_list(100)
-    return [Blog(**b) for b in blogs]
+    blog_id = str(uuid.uuid4())
+    ts = datetime.utcnow().isoformat()
+    
+    try:
+        cur.execute(
+            "INSERT INTO blogs (id, title, slug, content, summary, category, author_name, author_id, status, image_url, is_ai_generated, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (blog_id, input.title, slug, input.content, input.summary, input.category, user['username'], user['id'], input.status, input.image_url, True, ts, ts)
+        )
+        conn.commit()
+        return {"message": "Blog created", "id": blog_id, "slug": slug}
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"DATABASE INSERT ERROR: {e}")
+        # Return a clearer error to the frontend
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
 
-@api_router.get("/blogs/{slug}", response_model=Blog)
-async def get_blog(slug: str):
-    blog = await db.blogs.find_one({"slug": slug})
-    if blog:
-        return Blog(**blog)
-    return {"error": "Blog not found"}
+@api_router.get("/blogs/{slug}")
+async def get_blog_by_slug(slug: str):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM blogs WHERE slug = %s", (slug,))
+    blog = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not blog:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return blog
 
-@api_router.delete("/blogs/{blog_id}")
-async def delete_blog(blog_id: str):
-    await db.blogs.delete_one({"id": blog_id})
-    return {"message": "Blog deleted"}
+@api_router.patch("/blogs/{blog_id}/status")
+async def update_blog_status(blog_id: str, body: BlogUpdateStatus, current_user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    if current_user['role'] != 'admin':
+        cur.execute("SELECT author_id FROM blogs WHERE id = %s", (blog_id,))
+        blog = cur.fetchone()
+        if not blog or blog['author_id'] != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+    cur.execute("UPDATE blogs SET status = %s WHERE id = %s", (body.status, blog_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": "Status updated"}
 
-# Include the router
+@api_router.post("/contact")
+async def create_contact(input: dict):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO contacts (id, name, email, message, status, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                (str(uuid.uuid4()), input['name'], input['email'], input['message'], 'new', datetime.utcnow().isoformat()))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": "Success"}
+
+@api_router.get("/contacts")
+async def get_contacts(user: dict = Depends(get_current_user)):
+    if user['role'] != 'admin': raise HTTPException(status_code=403)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM contacts ORDER BY created_at DESC")
+    res = cur.fetchall(); cur.close(); conn.close()
+    return res
+
+@api_router.get("/")
+async def root(): return {"message": "ApZelio CMS API is running"}
+
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

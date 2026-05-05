@@ -29,7 +29,7 @@ const Navbar = () => {
               style={{
                 filter: isDark 
                   ? 'drop-shadow(0 0 8px rgba(71,214,255,0.4))' 
-                  : 'invert(1) hue-rotate(180deg) brightness(0.7) contrast(1.5) drop-shadow(0 0 2px rgba(0,0,0,0.2))'
+                  : 'drop-shadow(0 0 2px rgba(0,0,0,0.1))'
               }}
             />
           </Link>

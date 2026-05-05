@@ -8,7 +8,6 @@ export const navLinks = [
   { label: 'Testimonials', path: '/testimonials' },
   { label: 'Blog', path: '/blog' },
   { label: 'Contact', path: '/contact' },
-  { label: 'Admin', path: '/admin/blogs' },
 ];
 
 export const heroData = {

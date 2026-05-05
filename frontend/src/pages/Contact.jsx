@@ -4,8 +4,7 @@ import { Send, CheckCircle, Loader2, Mail, Phone, MapPin } from 'lucide-react';
 import { useThemeClasses } from '../hooks/useThemeClasses';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// API endpoint is now handled via axios.defaults.baseURL in App.js
 
 const serviceOptions = [
   'AI Integration & LLM Ops',
@@ -47,7 +46,7 @@ const useContactForm = () => {
     }
     setLoading(true);
     try {
-      await axios.post(`${API}/contact`, form);
+      await axios.post(`/api/contact`, form);
       setSuccess(true);
       setForm(INITIAL_FORM);
     } catch {
@@ -141,7 +140,7 @@ const Contact = () => {
   const { form, loading, success, error, setSuccess, handleChange, handleSubmit } = useContactForm();
 
   return (
-    <main className={`pt-28 pb-24 px-8 ${t.bgSurface}`}>
+    <main className={`pt-32 pb-24 px-8 ${t.bgSurface}`}>
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           <motion.div initial="hidden" animate="visible" variants={fadeUp}>

@@ -19,7 +19,7 @@ const Home = () => {
   const [contactOpen, setContactOpen] = useState(false);
 
   return (
-    <main className="overflow-hidden">
+    <main className="overflow-hidden pt-32">
       {/* Hero */}
       <section className={`relative min-h-screen flex items-center px-8 py-20 lg:py-0 max-w-7xl mx-auto ${t.isDark ? 'ether-bg' : ''}`}>
         {t.isDark && <div className="absolute inset-0 grid-pattern opacity-20 pointer-events-none" />}

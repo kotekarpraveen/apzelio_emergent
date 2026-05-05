@@ -7,6 +7,97 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+/* ---------- Sub-components ---------- */
+
+const BlogHero = ({ blog, onBack }) => (
+  <div className="relative h-[60vh] min-h-[400px] w-full overflow-hidden">
+    <img
+      src={blog.image_url || "https://images.unsplash.com/photo-1620712943543-bcc46386c6dd?auto=format&fit=crop&q=80&w=1600"}
+      alt={blog.title}
+      className="w-full h-full object-cover"
+    />
+    <div className="absolute inset-0 bg-gradient-to-t from-[#0b1326] via-[#0b1326]/40 to-transparent" />
+    <div className="absolute bottom-0 left-0 w-full p-8 md:p-16">
+      <div className="max-w-4xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white text-sm border border-white/20 hover:bg-white/20 transition-all"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <span className="px-4 py-1.5 rounded-full bg-[#47d6ff]/20 text-[#47d6ff] text-xs font-bold uppercase tracking-widest border border-[#47d6ff]/30 backdrop-blur-md">
+              {blog.category}
+            </span>
+            {blog.is_ai_generated && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold uppercase tracking-widest border border-indigo-500/30 backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5" /> AI Insights
+              </span>
+            )}
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold font-headline text-white mb-8 leading-[1.1]">{blog.title}</h1>
+          <div className="flex flex-wrap items-center gap-8 text-white/70">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-white border border-white/20">
+                {(blog.author_name || blog.author || 'A').charAt(0)}
+              </div>
+              <div>
+                <div className="text-white font-bold">{blog.author_name || blog.author || 'ApZelio Team'}</div>
+                <div className="text-xs">Technical Architect</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-[#47d6ff]" />
+              <span>{blog.created_at ? new Date(blog.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recent'}</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  </div>
+);
+
+const BlogSidebar = ({ isDark }) => (
+  <div className="lg:col-span-1 hidden lg:block">
+    <div className="sticky top-32 flex flex-col gap-6">
+      <button className={`p-3 rounded-full border transition-all ${isDark ? 'border-[#45464d]/30 hover:bg-[#222a3d] text-white' : 'border-gray-200 hover:bg-gray-100 text-gray-600'}`}>
+        <Share2 className="w-5 h-5" />
+      </button>
+      <button className={`p-3 rounded-full border transition-all ${isDark ? 'border-[#45464d]/30 hover:bg-[#222a3d] text-white' : 'border-gray-200 hover:bg-gray-100 text-gray-600'}`}>
+        <Bookmark className="w-5 h-5" />
+      </button>
+    </div>
+  </div>
+);
+
+const AuthorBox = ({ author_name, author, isDark, secondaryContainer, textOnSurface, textOnSurfaceVariant }) => (
+  <div className={`mt-20 p-10 rounded-3xl border ${isDark ? 'bg-[#131b2e] border-[#45464d]/20' : 'bg-[#f2f4f6] border-gray-200'}`}>
+    <div className="flex flex-col md:flex-row items-center gap-8">
+      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#47d6ff] to-[#d2bbff] p-1 shadow-xl">
+        <div className={`w-full h-full rounded-[0.9rem] flex items-center justify-center text-3xl font-bold ${isDark ? 'bg-[#0b1326] text-white' : 'bg-white text-[#0b1326]'}`}>
+          {(author_name || author || 'A').charAt(0)}
+        </div>
+      </div>
+      <div className="flex-1 text-center md:text-left">
+        <h4 className={`text-2xl font-bold font-headline mb-2 ${textOnSurface}`}>{author_name || author || 'ApZelio Team'}</h4>
+        <p className={`mb-4 ${textOnSurfaceVariant}`}>
+          Specializing in AI-driven software architecture and enterprise-grade solutions. Leading the charge in US-based engineering squads at ApZelio.
+        </p>
+        <div className="flex flex-wrap justify-center md:justify-start gap-3">
+          {['AI & ML', 'Cloud Native', 'Cybersecurity'].map(skill => (
+            <span key={skill} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${secondaryContainer}`}>
+              {skill}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+/* ---------- Main Component ---------- */
+
 const BlogDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -46,57 +137,8 @@ const BlogDetail = () => {
   }
 
   return (
-    <main className={`min-h-screen pb-24 ${t.bgSurface}`}>
-      {/* Hero Header */}
-      <div className="relative h-[60vh] min-h-[400px] w-full overflow-hidden">
-        <img 
-          src={`https://images.unsplash.com/photo-1620712943543-bcc46386c6dd?auto=format&fit=crop&q=80&w=1600`} 
-          alt={blog.title}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1326] via-[#0b1326]/40 to-transparent" />
-        
-        <div className="absolute bottom-0 left-0 w-full p-8 md:p-16">
-          <div className="max-w-4xl mx-auto">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                <button 
-                  onClick={() => navigate('/blog')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white text-sm border border-white/20 hover:bg-white/20 transition-all"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <span className="px-4 py-1.5 rounded-full bg-[#47d6ff]/20 text-[#47d6ff] text-xs font-bold uppercase tracking-widest border border-[#47d6ff]/30 backdrop-blur-md">
-                  {blog.category}
-                </span>
-                {blog.is_ai_generated && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold uppercase tracking-widest border border-indigo-500/30 backdrop-blur-md">
-                    <Sparkles className="w-3.5 h-3.5" /> AI Insights
-                  </span>
-                )}
-              </div>
-              <h1 className="text-4xl md:text-6xl font-bold font-headline text-white mb-8 leading-[1.1]">
-                {blog.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-8 text-white/70">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-white border border-white/20">
-                    {blog.author.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="text-white font-bold">{blog.author}</div>
-                    <div className="text-xs">Technical Architect</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-[#47d6ff]" />
-                  <span>{new Date(blog.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </div>
+    <main className={`min-h-screen pt-32 pb-24 ${t.bgSurface}`}>
+      <BlogHero blog={blog} onBack={() => navigate('/blog')} />
 
       {/* Content Section */}
       <div className="max-w-4xl mx-auto px-8 mt-16">
@@ -115,12 +157,15 @@ const BlogDetail = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-11">
-            <div className={`prose prose-lg max-w-none ${t.isDark ? 'prose-invert' : ''} 
-                prose-headings:font-headline prose-headings:font-bold 
-                prose-p:leading-relaxed prose-p:text-lg
-                prose-a:text-[#47d6ff] hover:prose-a:text-[#008cab]
-                prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
-                prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700
+            <div className={`prose prose-lg md:prose-xl max-w-none ${t.isDark ? 'prose-invert' : ''}
+                prose-headings:font-headline prose-headings:font-bold prose-headings:tracking-tight
+                prose-h2:text-3xl md:prose-h2:text-4xl prose-h2:mt-12 prose-h2:mb-6
+                prose-p:leading-relaxed prose-p:text-slate-400 prose-p:mb-8
+                prose-li:text-slate-400 prose-li:my-2
+                prose-strong:text-white prose-strong:font-bold
+                prose-a:text-[#47d6ff] prose-a:no-underline hover:prose-a:text-[#008cab] prose-a:transition-colors
+                prose-code:bg-[#1e293b] prose-code:text-[#47d6ff] prose-code:px-2 prose-code:py-0.5 prose-code:rounded-lg prose-code:before:content-none prose-code:after:content-none
+                prose-pre:bg-[#0f172a] prose-pre:border prose-pre:border-white/5 prose-pre:rounded-2xl prose-pre:shadow-2xl
                 ${t.textOnSurfaceVariant}`}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -128,29 +173,14 @@ const BlogDetail = () => {
               </ReactMarkdown>
             </div>
 
-            {/* Footer / Author Box */}
-            <div className={`mt-20 p-10 rounded-3xl border ${t.isDark ? 'bg-[#131b2e] border-[#45464d]/20' : 'bg-[#f2f4f6] border-gray-200'}`}>
-                <div className="flex flex-col md:flex-row items-center gap-8">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#47d6ff] to-[#d2bbff] p-1 shadow-xl">
-                        <div className={`w-full h-full rounded-[0.9rem] flex items-center justify-center text-3xl font-bold ${t.isDark ? 'bg-[#0b1326] text-white' : 'bg-white text-[#0b1326]'}`}>
-                            {blog.author.charAt(0)}
-                        </div>
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                        <h4 className={`text-2xl font-bold font-headline mb-2 ${t.textOnSurface}`}>{blog.author}</h4>
-                        <p className={`mb-4 ${t.textOnSurfaceVariant}`}>
-                            Specializing in AI-driven software architecture and enterprise-grade solutions. Leading the charge in US-based engineering squads at ApZelio.
-                        </p>
-                        <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                            {['AI & ML', 'Cloud Native', 'Cybersecurity'].map(skill => (
-                                <span key={skill} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${t.secondaryContainer}`}>
-                                    {skill}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <AuthorBox
+              author_name={blog.author_name}
+              author={blog.author}
+              isDark={t.isDark}
+              secondaryContainer={t.secondaryContainer}
+              textOnSurface={t.textOnSurface}
+              textOnSurfaceVariant={t.textOnSurfaceVariant}
+            />
           </div>
         </div>
       </div>

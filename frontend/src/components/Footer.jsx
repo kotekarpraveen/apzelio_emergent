@@ -12,7 +12,7 @@ const FooterBrand = ({ isDark }) => (
         src="/logo.png"
         alt={footerData.brand}
         className="h-14 w-auto object-contain transition-all duration-300 drop-shadow-sm"
-        style={{ filter: isDark ? 'drop-shadow(0 0 6px rgba(71,214,255,0.3))' : 'invert(1) hue-rotate(180deg) brightness(0.7) contrast(1.5)' }}
+        style={{ filter: isDark ? 'drop-shadow(0 0 6px rgba(71,214,255,0.3))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.1))' }}
       />
     </Link>
     <p className="font-body leading-relaxed max-w-xs text-slate-500">{footerData.tagline}</p>

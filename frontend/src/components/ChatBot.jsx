@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// API endpoint is now handled via axios.defaults.baseURL in App.js
 
 /* ---------- Sub-components ---------- */
 
@@ -123,7 +122,7 @@ const ChatBot = () => {
     setMessages(prev => [...prev, { id: `${msgId}-user`, role: 'user', content: userMsg }]);
     setLoading(true);
     try {
-      const res = await axios.post(`${API}/chat`, { message: userMsg, session_id: sessionId });
+      const res = await axios.post(`/api/chat`, { message: userMsg, session_id: sessionId });
       setMessages(prev => [...prev, { id: `${msgId}-assistant`, role: 'assistant', content: res.data.response }]);
     } catch {
       setMessages(prev => [...prev, { id: `${msgId}-error`, role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again or use our contact form." }]);
