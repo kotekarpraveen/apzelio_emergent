@@ -41,7 +41,7 @@ const Admin = () => {
     fetchBlogs();
   }, []);
 
-  const fetchBlogs = async () => {
+  const fetchBlogs = useCallback(async () => {
     try {
       const response = await axios.get('/api/blogs?status=draft', {
         headers: { Authorization: `Bearer ${token}` }

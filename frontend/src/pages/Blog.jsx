@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, User, ArrowRight, Tag, Search, Sparkles } from 'lucide-react';
+import { 
+  Calendar, User, ArrowRight, Tag, Search, Sparkles, 
+  Layers, BrainCircuit, Cloud, Shield, BookOpen, TrendingUp, PenTool 
+} from 'lucide-react';
 import { useThemeClasses } from '../hooks/useThemeClasses';
 import axios from 'axios';
 
@@ -322,7 +325,7 @@ const Blog = () => {
                             {filteredBlogs[0].summary}
                         </p>
                         <div className="flex items-center gap-6 text-white/70 text-sm">
-                            <div className="flex items-center gap-2"><User className="w-4 h-4" /> {filteredBlogs[0].author}</div>
+                            <div className="flex items-center gap-2"><User className="w-4 h-4" /> {filteredBlogs[0].author_name || filteredBlogs[0].author || 'ApZelio Team'}</div>
                             <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(filteredBlogs[0].created_at).toLocaleDateString()}</div>
                         </div>
                     </div>
@@ -380,9 +383,9 @@ const Blog = () => {
                             <div className="mt-auto flex items-center justify-between">
                                 <div className={`flex items-center gap-2 text-xs font-bold ${t.textOnSurface}`}>
                                     <div className={`w-6 h-6 rounded-full ${t.isDark ? 'bg-slate-700' : 'bg-slate-200'} flex items-center justify-center text-[10px]`}>
-                                        {blog.author.charAt(0)}
+                                        {(blog.author_name || blog.author || 'A').charAt(0)}
                                     </div>
-                                    {blog.author}
+                                    {blog.author_name || blog.author || 'ApZelio Team'}
                                 </div>
                                 <div className={`flex items-center gap-1 text-sm font-bold ${t.textPrimary}`}>
                                     Read More <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
