@@ -37,9 +37,6 @@ const Admin = () => {
     checkAuth();
   }, [checkAuth]);
 
-  useEffect(() => {
-    fetchBlogs();
-  }, []);
 
   const fetchBlogs = useCallback(async () => {
     try {
