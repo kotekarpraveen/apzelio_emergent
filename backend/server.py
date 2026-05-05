@@ -111,20 +111,85 @@ async def register(user: UserRegister):
         cur.close()
         conn.close()
 
-@api_router.post("/auth/login")
-async def login(user: UserLogin):
+@api_router.get("/init-db")
+async def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
-    db_user = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        # Create Users table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT DEFAULT 'author',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Create Blogs table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS blogs (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                slug TEXT UNIQUE NOT NULL,
+                content TEXT NOT NULL,
+                summary TEXT,
+                category TEXT DEFAULT 'Development',
+                author_name TEXT,
+                author_id TEXT REFERENCES users(id),
+                status TEXT DEFAULT 'draft',
+                image_url TEXT,
+                is_ai_generated BOOLEAN DEFAULT FALSE,
+                created_at TEXT,
+                updated_at TEXT
+            )
+        """)
+        # Create Contacts table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS contacts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT DEFAULT 'new',
+                created_at TEXT
+            )
+        """)
+        conn.commit()
+        return {"message": "Database initialized successfully"}
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"DB INIT ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
 
-    if not db_user or not pwd_context.verify(user.password, db_user['password_hash']):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+@api_router.post("/auth/login")
+async def login(user: UserLogin):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
+        db_user = cur.fetchone()
+        cur.close()
+        conn.close()
 
-    token = create_access_token({"id": db_user['id'], "username": db_user['username'], "role": db_user['role']})
-    return {"token": token, "username": db_user['username'], "role": db_user['role']}
+        if not db_user:
+            logger.warning(f"Login failed: User {user.username} not found")
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+            
+        if not pwd_context.verify(user.password, db_user['password_hash']):
+            logger.warning(f"Login failed: Incorrect password for {user.username}")
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        token = create_access_token({"id": db_user['id'], "username": db_user['username'], "role": db_user['role']})
+        return {"token": token, "username": db_user['username'], "role": db_user['role']}
+    except Exception as e:
+        logger.error(f"LOGIN ERROR: {e}")
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # --- USER MANAGEMENT ---
 @api_router.get("/users")
