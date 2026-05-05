@@ -94,7 +94,11 @@ class BlogUpdateStatus(BaseModel):
 @api_router.post("/auth/register")
 async def register(user: UserRegister):
     try:
-        hashed_pwd = pwd_context.hash(user.password)
+        # Bcrypt limit is 72 bytes
+        safe_password = user.password[:72]
+        logger.info(f"Registration attempt for: {user.username} (pw_len: {len(user.password)})")
+        
+        hashed_pwd = pwd_context.hash(safe_password)
         user_id = str(uuid.uuid4())
         conn = get_db_connection()
         cur = conn.cursor()
@@ -168,6 +172,10 @@ async def init_db():
 @api_router.post("/auth/login")
 async def login(user: UserLogin):
     try:
+        # Bcrypt limit
+        safe_password = user.password[:72]
+        logger.info(f"Login attempt for user: {user.username} (pw_len: {len(user.password)})")
+        
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
@@ -179,7 +187,7 @@ async def login(user: UserLogin):
             logger.warning(f"Login failed: User {user.username} not found")
             raise HTTPException(status_code=401, detail="Invalid credentials")
             
-        if not pwd_context.verify(user.password, db_user['password_hash']):
+        if not pwd_context.verify(safe_password, db_user['password_hash']):
             logger.warning(f"Login failed: Incorrect password for {user.username}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
