@@ -23,7 +23,8 @@ load_dotenv(ROOT_DIR / '.env')
 # Security Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'apzelio-super-secret-key-2024')
 ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
+# Removed passlib CryptContext to use direct bcrypt
 # Use auto_error=False to allow optional authentication
 security = HTTPBearer(auto_error=False)
 
@@ -99,7 +100,9 @@ async def register(user: UserRegister):
         pw_hash_pre = hashlib.sha256(user.password.encode()).hexdigest()
         logger.info(f"Registration attempt for: {user.username} (pw_len: {len(user.password)})")
         
-        hashed_pwd = pwd_context.hash(pw_hash_pre)
+        # Direct bcrypt usage
+        salt = bcrypt.gensalt()
+        hashed_pwd = bcrypt.hashpw(pw_hash_pre.encode(), salt).decode('utf-8')
         user_id = str(uuid.uuid4())
         conn = get_db_connection()
         cur = conn.cursor()
@@ -189,7 +192,9 @@ async def login(user: UserLogin):
             logger.warning(f"Login failed: User {user.username} not found")
             raise HTTPException(status_code=401, detail="Invalid credentials")
             
-        if not pwd_context.verify(pw_hash_pre, db_user['password_hash']):
+        # Direct bcrypt check
+        db_stored_hash = db_user['password_hash'].encode('utf-8')
+        if not bcrypt.checkpw(pw_hash_pre.encode(), db_stored_hash):
             logger.warning(f"Login failed: Incorrect password for {user.username}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
