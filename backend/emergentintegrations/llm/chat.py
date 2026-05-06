@@ -32,7 +32,8 @@ class LlmChat:
         }
         data = {
             "model": self.model,
-            "messages": self.messages
+            "messages": self.messages,
+            "response_format": { "type": "json_object" }
         }
         
         try:
