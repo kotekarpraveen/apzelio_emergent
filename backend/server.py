@@ -241,8 +241,30 @@ async def generate_blog(request: dict):
         """
         
         response_text = await chat.send_message(UserMessage(text=prompt))
-        clean_json = re.sub(r'```json\n|\n```', '', response_text).strip()
-        blog_data = json.loads(clean_json)
+        
+        # Robust JSON cleaning
+        clean_json = response_text.strip()
+        if "```json" in clean_json:
+            clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+        elif "```" in clean_json:
+            clean_json = clean_json.split("```")[1].split("```")[0].strip()
+            
+        # Remove any leading/trailing non-JSON characters
+        start_idx = clean_json.find('{')
+        end_idx = clean_json.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            clean_json = clean_json[start_idx:end_idx+1]
+            
+        try:
+            blog_data = json.loads(clean_json)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON DECODE ERROR: {e}. Raw text: {response_text[:500]}...")
+            # Fallback: Try to escape newlines if that was the issue
+            try:
+                fixed_json = clean_json.replace('\n', '\\n').replace('\r', '\\r')
+                blog_data = json.loads(fixed_json)
+            except:
+                raise HTTPException(status_code=500, detail=f"AI returned invalid JSON: {str(e)}")
         
         kw = blog_data.get('image_keyword', 'technology')
         blog_data['image_url'] = f"https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200&keywords={kw}"
