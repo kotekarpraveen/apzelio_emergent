@@ -242,6 +242,10 @@ async def generate_blog(request: dict):
         
         response_text = await chat.send_message(UserMessage(text=prompt))
         
+        if response_text.startswith("AI_ERROR:") or response_text.startswith("Connection Error:"):
+            logger.error(f"AI Provider failed: {response_text}")
+            raise HTTPException(status_code=502, detail=response_text)
+            
         # Robust JSON cleaning
         clean_json = response_text.strip()
         if "```json" in clean_json:

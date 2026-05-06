@@ -46,6 +46,6 @@ class LlmChat:
                         return ai_content
                     else:
                         error_text = await response.text()
-                        return f"Error from AI Provider: {response.status}. Please check your API key."
+                        return f"AI_ERROR: Status {response.status}. Details: {error_text}"
         except Exception as e:
             return f"Connection Error: {str(e)}"
